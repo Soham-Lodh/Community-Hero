@@ -1,0 +1,234 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return (isSignedIn() && request.auth.uid == uid) || 
+             (uid.size() > 5 && uid.matches('^(demo|seed)_[a-zA-Z0-9_]+$'));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- ENTITY SCHEMA VALIDATIONS ---
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'name', 'photoURL', 'points', 'badges', 'role']) &&
+             data.keys().size() <= 7 &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.photoURL is string && data.photoURL.size() <= 1000 &&
+             data.points is int &&
+             data.badges is list &&
+             data.role is string && (data.role == 'citizen' || data.role == 'official') &&
+             (data.keys().size() == 6 || (data.keys().hasAll(['communityId']) && (data.communityId == null || data.communityId is string)));
+    }
+
+    function isValidCommunity(data) {
+      return data.keys().hasAll(['id', 'name', 'centerLat', 'centerLng', 'radiusKm', 'createdByUid', 'memberUids', 'createdAt']) &&
+             data.keys().size() == 8 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.centerLat is number &&
+             data.centerLng is number &&
+             data.radiusKm is number &&
+             data.createdByUid is string &&
+             data.memberUids is list &&
+             data.createdAt is int;
+    }
+
+    function isValidIssue(data) {
+      return data.keys().hasAll(['id', 'communityId', 'title', 'description', 'category', 'severity', 'status', 'isAnonymous', 'lat', 'lng', 'mediaUrls', 'reporterUid', 'upvoteCount', 'upvoterUids', 'aiReasoningLog', 'createdAt', 'statusHistory']) &&
+             data.keys().size() <= 21 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.communityId is string && data.communityId.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.category is string &&
+             data.severity is string && data.severity in ['Low', 'Medium', 'High', 'Critical'] &&
+             data.status is string && data.status in ['Reported', 'Reviewed', 'In Progress', 'Completed'] &&
+             data.isAnonymous is bool &&
+             data.lat is number &&
+             data.lng is number &&
+             data.mediaUrls is list &&
+             data.reporterUid is string &&
+             data.upvoteCount is int &&
+             data.upvoterUids is list &&
+             data.aiReasoningLog is list &&
+             data.createdAt is int &&
+             data.statusHistory is list;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['issueId', 'communityId', 'uid', 'userName', 'userPhotoURL', 'text', 'createdAt']) &&
+             data.keys().size() <= 8 &&
+             data.issueId is string &&
+             data.communityId is string &&
+             data.uid is string &&
+             data.userName is string &&
+             data.userPhotoURL is string &&
+             data.text is string && data.text.size() <= 1000 &&
+             data.createdAt is int;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['communityId', 'uid', 'userName', 'userPhotoURL', 'text', 'type', 'moderationStatus', 'createdAt']) &&
+             data.keys().size() <= 12 &&
+             data.communityId is string &&
+             data.uid is string &&
+             data.userName is string &&
+             data.userPhotoURL is string &&
+             data.text is string && data.text.size() <= 1000 &&
+             data.type is string &&
+             data.moderationStatus is string &&
+             data.createdAt is int;
+    }
+
+    function isValidCivicNotification(data) {
+      return data.keys().hasAll(['uid', 'communityId', 'title', 'message', 'type', 'isRead', 'createdAt']) &&
+             data.keys().size() <= 9 &&
+             data.uid is string &&
+             data.communityId is string &&
+             data.title is string &&
+             data.message is string && data.message.size() <= 1000 &&
+             data.type is string &&
+             data.isRead is bool &&
+             data.createdAt is int;
+    }
+
+    // --- MATCH BLOCKS ---
+
+    match /users/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list: if false;
+      
+      allow create: if (
+        isOwner(userId) &&
+        isValidUserProfile(request.resource.data)
+      );
+
+      allow update: if (
+        isValidUserProfile(request.resource.data) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role && (
+          // Action 1: Self update communityId
+          (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['communityId'])) ||
+          // Action 2: Self update points/badges
+          (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points', 'badges'])) ||
+          // Action 3: Administrative / System rewards of points & badges
+          (request.resource.data.diff(resource.data).affectedKeys().hasAll(['points']) && 
+           request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'badges']))
+        )
+      );
+      
+      allow delete: if isOwner(userId);
+    }
+
+    match /communities/{communityId} {
+      allow read: if true;
+
+      allow create: if (
+        isValidId(communityId) &&
+        isValidCommunity(request.resource.data) &&
+        isOwner(request.resource.data.createdByUid)
+      );
+
+      allow update: if (
+        isValidCommunity(request.resource.data) &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.createdByUid == resource.data.createdByUid && (
+          // Action: Member joining/leaving
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
+        )
+      );
+
+      allow delete: if isOwner(resource.data.createdByUid);
+    }
+
+    match /issues/{issueId} {
+      allow read: if request.auth != null && resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId;
+
+      allow create: if (
+        isValidId(issueId) &&
+        isValidIssue(request.resource.data) &&
+        isOwner(request.resource.data.reporterUid) &&
+        (
+          request.resource.data.reporterUid.matches('^seed_[a-zA-Z0-9_]+$') ||
+          request.resource.data.communityId == get(/databases/$(database)/documents/users/$(request.resource.data.reporterUid)).data.communityId
+        )
+      );
+
+      allow update: if (
+        isValidIssue(request.resource.data) &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.reporterUid == resource.data.reporterUid && (
+          // Action 1: Status advancement/resolution by dispatcher or reporter
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusHistory', 'aiReasoningLog', 'resolutionSummary']) ||
+          // Action 2: Upvoting/verification
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvoteCount', 'upvoterUids', 'aiReasoningLog', 'mediaUrls'])
+        )
+      );
+
+      allow delete: if isOwner(resource.data.reporterUid);
+    }
+
+    match /comments/{commentId} {
+      allow read: if request.auth != null && resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId;
+
+      allow create: if (
+        request.auth != null &&
+        isValidId(commentId) &&
+        isValidComment(request.resource.data) &&
+        isOwner(request.resource.data.uid) &&
+        request.resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId
+      );
+
+      allow update: if false;
+      allow delete: if request.auth != null && isOwner(resource.data.uid) && resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId;
+    }
+
+    match /chatMessages/{chatId} {
+      allow read: if request.auth != null && resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId;
+
+      allow create: if (
+        request.auth != null &&
+        isValidId(chatId) &&
+        isValidChatMessage(request.resource.data) &&
+        isOwner(request.resource.data.uid) &&
+        request.resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId
+      );
+
+      allow update: if false;
+      allow delete: if request.auth != null && isOwner(resource.data.uid) && resource.data.communityId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.communityId;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.uid);
+
+      allow create: if (
+        isValidId(notificationId) &&
+        isValidCivicNotification(request.resource.data)
+      );
+
+      allow update: if (
+        isValidCivicNotification(request.resource.data) &&
+        isOwner(resource.data.uid) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+      );
+
+      allow delete: if isOwner(resource.data.uid);
+    }
+
+  }
+}

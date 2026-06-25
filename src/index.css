@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-civic-primary: #52796f;
+  --color-civic-accent: #84a98c;
+  --color-civic-darkest: #2f3e46;
+  --color-civic-dark: #354f52;
+  --color-civic-light: #cad2c5;
+}
+
+@layer utilities {
+  .neumorph-out {
+    background: #cad2c5;
+    box-shadow: 8px 8px 16px #acb3a8, -8px -8px 16px #e8f1e2;
+  }
+
+  .neumorph-in {
+    background: #cad2c5;
+    box-shadow: inset 6px 6px 12px #acb3a8, inset -6px -6px 12px #e8f1e2;
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-dark {
+    background: rgba(47, 62, 70, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* Base resets & custom scrollbar */
+html, body {
+  background-color: #cad2c5;
+  font-family: var(--font-sans);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(47, 62, 70, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(47, 62, 70, 0.25);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(47, 62, 70, 0.4);
+}
+
+/* Leaflet maps custom styles */
+.leaflet-container {
+  font-family: var(--font-sans) !important;
+  background-color: #cad2c5 !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  color: #2f3e46 !important;
+  padding: 0.25rem !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95) !important;
+}

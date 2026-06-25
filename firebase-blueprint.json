@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with points and badges",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "communityId": { "type": "string" },
+        "points": { "type": "integer" },
+        "badges": { "type": "array" },
+        "role": { "type": "string" }
+      },
+      "required": ["uid", "name", "photoURL", "points", "badges", "role"]
+    },
+    "Community": {
+      "title": "Community",
+      "description": "Hyperlocal community catchment bounds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "centerLat": { "type": "number" },
+        "centerLng": { "type": "number" },
+        "radiusKm": { "type": "number" },
+        "createdByUid": { "type": "string" },
+        "memberUids": { "type": "array" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "name", "centerLat", "centerLng", "radiusKm", "createdByUid", "memberUids", "createdAt"]
+    },
+    "Issue": {
+      "title": "Issue",
+      "description": "A reported civic hazard or issue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "communityId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "severity": { "type": "string" },
+        "status": { "type": "string" },
+        "isAnonymous": { "type": "boolean" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "mediaUrls": { "type": "array" },
+        "reporterUid": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "reporterPhoto": { "type": "string" },
+        "upvoteCount": { "type": "integer" },
+        "upvoterUids": { "type": "array" },
+        "aiReasoningLog": { "type": "array" },
+        "routingTag": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "statusHistory": { "type": "array" },
+        "resolutionSummary": { "type": "string" }
+      },
+      "required": ["id", "communityId", "title", "description", "category", "severity", "status", "isAnonymous", "lat", "lng", "mediaUrls", "reporterUid", "upvoteCount", "upvoterUids", "aiReasoningLog", "createdAt", "statusHistory"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "Coordination comment on an issue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "issueId": { "type": "string" },
+        "uid": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhotoURL": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["issueId", "uid", "userName", "userPhotoURL", "text", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Moderated community chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "communityId": { "type": "string" },
+        "uid": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhotoURL": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string" },
+        "linkedIssueId": { "type": "string" },
+        "linkedIssueTitle": { "type": "string" },
+        "moderationStatus": { "type": "string" },
+        "moderationReason": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["communityId", "uid", "userName", "userPhotoURL", "text", "type", "moderationStatus", "createdAt"]
+    },
+    "CivicNotification": {
+      "title": "CivicNotification",
+      "description": "In-app real-time notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "communityId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "linkedIssueId": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["uid", "communityId", "title", "message", "type", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/communities/{communityId}": {
+      "schema": "Community",
+      "description": "Communities list"
+    },
+    "/issues/{issueId}": {
+      "schema": "Issue",
+      "description": "Civic issues"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Issue comments thread"
+    },
+    "/chatMessages/{chatId}": {
+      "schema": "ChatMessage",
+      "description": "Community chat channel"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "CivicNotification",
+      "description": "Real-time user notifications"
+    }
+  }
+}
