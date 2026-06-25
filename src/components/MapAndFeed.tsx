@@ -115,7 +115,13 @@ export default function MapAndFeed({ onSelectIssue, onNavigateToReport }: MapAnd
       ]
     });
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 0);
+    
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
 
     // Draw community catchment circle bounds
     if (currentCommunity) {
@@ -130,6 +136,7 @@ export default function MapAndFeed({ onSelectIssue, onNavigateToReport }: MapAnd
     }
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };

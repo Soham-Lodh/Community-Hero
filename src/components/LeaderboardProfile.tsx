@@ -71,7 +71,13 @@ export default function LeaderboardProfile() {
       ]
     });
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 0);
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
 
     // Draw community boundaries circle
     L.circle([currentCommunity.centerLat, currentCommunity.centerLng], {
@@ -153,6 +159,7 @@ export default function LeaderboardProfile() {
     }
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };

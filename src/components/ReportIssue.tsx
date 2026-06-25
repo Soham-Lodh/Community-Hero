@@ -57,21 +57,21 @@ const FALLBACK_INTAKE_BY_CATEGORY: Record<string, {
     description: "A road surface hazard appears to need inspection, repair, or verification by the roads department.",
     category: "Pothole",
     severity: IssueSeverity.Medium,
-    routingTag: "Roads Dept"
+    routingTag: "Roads & Infrastructure"
   },
   leak: {
     title: "Water Leak on Public Path",
     description: "A visible public water leak is wasting water and creating a slip hazard near the walkway or road.",
     category: "Water Leak",
     severity: IssueSeverity.High,
-    routingTag: "Water Board"
+    routingTag: "Public Safety"
   },
   drain: {
     title: "Blocked Drain Flooding Street",
     description: "A blocked public drain is causing standing water and should be inspected before the area floods further.",
     category: "Water Leak",
     severity: IssueSeverity.High,
-    routingTag: "Water Board"
+    routingTag: "Roads & Infrastructure"
   },
   trash: {
     title: "Overflowing Public Garbage Area",
@@ -85,14 +85,14 @@ const FALLBACK_INTAKE_BY_CATEGORY: Record<string, {
     description: "A public lighting issue is affecting visibility or safety and should be checked by the electricity board.",
     category: "Streetlight",
     severity: IssueSeverity.Medium,
-    routingTag: "Electricity Board"
+    routingTag: "Public Safety"
   },
   damaged: {
     title: "Damaged Public Property Hazard",
     description: "Public property appears damaged and may create a safety or access issue for nearby residents.",
     category: "Damaged Property",
     severity: IssueSeverity.Medium,
-    routingTag: "Roads Dept"
+    routingTag: "Parks & Recreation"
   }
 };
 
@@ -177,6 +177,12 @@ export default function ReportIssue({ onBack, onNavigateToIssue }: ReportIssuePr
 
   // Geo duplicate warning state
   const [duplicateWarning, setDuplicateWarning] = useState<any | null>(null);
+  const [bypassDuplicateCheck, setBypassDuplicateCheck] = useState<boolean>(false);
+
+  // Reset duplicate warning bypass if parameters change
+  useEffect(() => {
+    setBypassDuplicateCheck(false);
+  }, [category, issueLat, issueLng]);
 
   // Leaflet map refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -336,7 +342,13 @@ export default function ReportIssue({ onBack, onNavigateToIssue }: ReportIssuePr
       ]
     });
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 0);
+    
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
 
     // Draw community radius bounds
     L.circle([currentCommunity.centerLat, currentCommunity.centerLng], {
@@ -365,6 +377,7 @@ export default function ReportIssue({ onBack, onNavigateToIssue }: ReportIssuePr
     });
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };
@@ -399,26 +412,28 @@ export default function ReportIssue({ onBack, onNavigateToIssue }: ReportIssuePr
     setSubmitLoading(true);
 
     try {
-      const duplicateMatches = issues
-        .filter((issue) => (
-          issue.communityId === currentCommunity!.id &&
-          issue.category === category &&
-          issue.status !== IssueStatus.Completed &&
-          Number.isFinite(issue.lat) &&
-          Number.isFinite(issue.lng)
-        ))
-        .map((issue) => ({
-          ...issue,
-          distanceMeters: Math.round(calculateDistance(issueLat, issueLng, issue.lat, issue.lng) * 1000)
-        }))
-        .filter((issue) => issue.distanceMeters <= 150)
-        .sort((a, b) => a.distanceMeters - b.distanceMeters);
+      if (!bypassDuplicateCheck) {
+        const duplicateMatches = issues
+          .filter((issue) => (
+            issue.communityId === currentCommunity!.id &&
+            issue.category === category &&
+            issue.status !== IssueStatus.Completed &&
+            Number.isFinite(issue.lat) &&
+            Number.isFinite(issue.lng)
+          ))
+          .map((issue) => ({
+            ...issue,
+            distanceMeters: Math.round(calculateDistance(issueLat, issueLng, issue.lat, issue.lng) * 1000)
+          }))
+          .filter((issue) => issue.distanceMeters <= 150)
+          .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-      if (duplicateMatches.length > 0 && !duplicateWarning) {
-        // Show duplicate intercept dialog
-        setDuplicateWarning(duplicateMatches[0]);
-        setSubmitLoading(false);
-        return;
+        if (duplicateMatches.length > 0 && !duplicateWarning) {
+          // Show duplicate intercept dialog
+          setDuplicateWarning(duplicateMatches[0]);
+          setSubmitLoading(false);
+          return;
+        }
       }
 
       // Execute create
@@ -528,10 +543,13 @@ export default function ReportIssue({ onBack, onNavigateToIssue }: ReportIssuePr
             <div className="flex justify-end space-x-3 pt-1">
               <button
                 type="button"
-                onClick={() => setDuplicateWarning(null)}
+                onClick={() => {
+                  setDuplicateWarning(null);
+                  setError("A matching hazard is already registered nearby. To prevent municipal database clutter, please upvote the existing report or drag your map pin to a different location.");
+                }}
                 className="px-4 py-2 bg-transparent text-xs font-bold text-amber-900 hover:underline cursor-pointer"
               >
-                No, File Duplicate Anyway
+                Cancel & Adjust Coordinates
               </button>
               <button
                 type="button"
@@ -695,10 +713,10 @@ export default function ReportIssue({ onBack, onNavigateToIssue }: ReportIssuePr
                     onChange={(e) => setRoutingTag(e.target.value)}
                     className="w-full px-4.5 py-3 bg-[#c2cbbe] rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-civic-primary text-civic-darkest cursor-pointer neumorph-in border-0"
                   >
-                    <option value="Roads Dept">Roads Dept</option>
-                    <option value="Water Board">Water Board</option>
+                    <option value="Roads & Infrastructure">Roads & Infrastructure</option>
+                    <option value="Public Safety">Public Safety</option>
                     <option value="Sanitation">Sanitation</option>
-                    <option value="Electricity Board">Electricity Board</option>
+                    <option value="Parks & Recreation">Parks & Recreation</option>
                   </select>
                 </div>
               </div>

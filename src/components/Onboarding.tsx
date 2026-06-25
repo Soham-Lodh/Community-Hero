@@ -108,6 +108,13 @@ export default function Onboarding({ initialTab, hideJoinTab = false }: Onboardi
     });
     mapRef.current = map;
 
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     // Add Simulated Home Pin
     const userMarker = L.marker([0, 0], {
       draggable: true,
@@ -154,6 +161,7 @@ export default function Onboarding({ initialTab, hideJoinTab = false }: Onboardi
     });
 
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };

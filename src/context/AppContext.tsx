@@ -104,17 +104,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const fetchCityWideIssues = async () => {
       try {
-        const res = await fetch('/api/issues/citywide');
-        const data = await res.json();
-        if (data.success) {
-          setAllIssuesCityWide(data.issues || []);
-        }
+        const issuesRef = collection(db, 'issues');
+        const querySnapshot = await getDocs(issuesRef);
+        const issuesList: Issue[] = [];
+        querySnapshot.forEach((docSnap) => {
+          issuesList.push({ id: docSnap.id, ...docSnap.data() } as Issue);
+        });
+        setAllIssuesCityWide(issuesList);
       } catch (err) {
-        console.warn("Could not load citywide issues:", err);
+        console.warn("Could not load citywide issues from Firestore:", err);
       }
     };
     fetchCityWideIssues();
-  }, [issues.length]);
+  }, [issues]);
 
   // Monitor Auth State
   useEffect(() => {

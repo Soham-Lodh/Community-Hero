@@ -64,11 +64,18 @@ export default function ImpactDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             communityId: scope === 'community' ? currentCommunity?.id : null,
-            communityName: scope === 'community' ? currentCommunity?.name : "San Francisco City"
+            communityName: scope === 'community' ? currentCommunity?.name : "San Francisco City",
+            issues: activeIssues
           })
         });
         const data = await response.json();
-        setInsights(data.insights || []);
+        // Dynamically map backend structure (description -> text, priority -> category) to match frontend model
+        const mappedInsights = (data.insights || []).map((ins: any) => ({
+          title: ins.title || "Hazard Pattern detected",
+          text: ins.text || ins.description || "Active monitoring advised for localized hazard patterns.",
+          category: ins.category || ins.priority || "General"
+        }));
+        setInsights(mappedInsights);
       } catch (err) {
         console.error("Failed to load insights:", err);
       } finally {
@@ -77,7 +84,7 @@ export default function ImpactDashboard() {
     };
 
     fetchInsights();
-  }, [scope, currentCommunity, issues.length]);
+  }, [scope, currentCommunity, activeIssues]);
 
   // Load Community Sentiment dynamically
   useEffect(() => {
@@ -93,7 +100,8 @@ export default function ImpactDashboard() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            communityId: currentCommunity.id
+            communityId: currentCommunity.id,
+            messages: chatMessages
           })
         });
         const data = await response.json();
@@ -106,7 +114,7 @@ export default function ImpactDashboard() {
     };
 
     fetchSentiment();
-  }, [scope, currentCommunity, issues.length, chatMessages?.length]);
+  }, [scope, currentCommunity, issues.length, chatMessages]);
 
   return (
     <div id="impact_dashboard_view" className="p-4 md:p-8 space-y-6 bg-civic-light/30 min-h-screen selection:bg-civic-accent selection:text-civic-darkest">
